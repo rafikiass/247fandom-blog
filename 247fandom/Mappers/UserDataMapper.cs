@@ -77,7 +77,8 @@ namespace _247fandom.Mappers
                     Title = post.Title,
                     Content = post.Content,
                     CreatedAt = post.CreatedAt,
-                    UpdatedAt = post.UpdatedAt
+                    UpdatedAt = post.UpdatedAt,
+                    Comments = CommentUtil.MapCommentData(post.Comments)
                 };
                 postList.Add(newPostDTO);
             }

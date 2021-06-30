@@ -39,7 +39,7 @@ namespace _247fandom.Controllers
             var post = await _context
                 .Post
                 .Include(p => p.User)
-                .Include(p => p.Comments)
+                .Include(p => p.Comments).ThenInclude(c => c.User)
                 .FirstOrDefaultAsync(p => p.PostId == id);
 
             if (post == null)

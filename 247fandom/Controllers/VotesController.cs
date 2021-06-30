@@ -22,9 +22,8 @@ namespace _247fandom.Controllers
             _context = context;
         }
 
-        // GET: api/Votes/5
-        [HttpGet("post/{postId}/votes")]
-        public async Task<ActionResult<VoteResponseDTO>> GetPostVote(long postId)
+        [HttpGet("posts/{postId}/votes")]
+        public async Task<ActionResult<VoteResponseDTO>> GetVotesForPost(long postId)
         {
             var post = await _context.Post
                 .Include(p => p.Votes)
@@ -40,52 +39,108 @@ namespace _247fandom.Controllers
             return BuildVoteResponse<Post>(post);
         }
 
+       [HttpGet("comments/{commentId}/votes")]       
+        public async Task<ActionResult<VoteResponseDTO>> GetVotesForComments(long commentId)
+        {
+            var comment = await _context.Comment
+                .Include(p => p.Votes)
+                .ThenInclude(v => v.User)
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.CommentId == commentId);
+
+            if (comment == null)
+            {
+                return NotFound();
+            }
+                
+            return BuildVoteResponse<Comment>(comment);
+        }
+
 
         [HttpPost("voteForPost")]
         public async Task<ActionResult<object>> PostVote(VoteRequestDTO voteRequest)
         {
-            if(voteRequest.Votable.Equals("PostVote"))
-            {
-                var postVote = BuildPostVote(voteRequest);
-                _context.PostVotes.Add(postVote);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction("GetPostVote", new { id = postVote.Id }, postVote);
+            if (voteRequest.Votable.Equals("PostVote")) {
+
+                var vote = await FindVoteForPost(voteRequest);
+
+                //Remove the vote - unlike post - double click on a voted post
+                if(vote != null && vote.VoteType == voteRequest.VoteType) {
+                    
+                    _context.PostVotes.Remove(vote);
+                    await _context.SaveChangesAsync();
+                    return CreatedAtAction(nameof(GetVotesForPost), new { postId = voteRequest.VotableId }, vote);
+                }   
+                
+                //Remove the vote - Change vote post - from like to omg
+                if(vote != null && vote.VoteType != voteRequest.VoteType) {
+                    
+                    vote.VoteType = voteRequest.VoteType;
+                    _context.Entry(vote).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+                    return CreatedAtAction(nameof(GetVotesForPost), new { postId = voteRequest.VotableId }, vote);
+                }                 
+
+                //Vote for post for the first time.
+                if(vote == null)
+                {
+                    var postVote = BuildPostVote(voteRequest);
+                    _context.PostVotes.Add(postVote);
+                    await _context.SaveChangesAsync();
+                    return CreatedAtAction(nameof(GetVotesForPost), new { postId = voteRequest.VotableId }, postVote);
+                }
             }
+
             return NotFound();
         }
 
         [HttpPost("voteForComment")]
         public async Task<ActionResult<CommentVote>> PostCommentVote(VoteRequestDTO voteRequest)
         {
-            if (voteRequest.Votable.Equals("CommentVote"))
+
+          if(voteRequest.Votable.Equals("CommentVote")) {
+
+            var vote = await FindVoteForComment(voteRequest);
+
+            //Remove the vote - unlike comment - double click on a voted comment
+            if(vote != null && vote.VoteType == voteRequest.VoteType) {
+                _context.CommentVotes.Remove(vote);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetVotesForComments), new { commentId = voteRequest.VotableId }, vote);
+            }   
+            
+            //Remove the vote - Change vote comment - from like to omg
+            if(vote != null && vote.VoteType != voteRequest.VoteType) {
+                
+                vote.VoteType = voteRequest.VoteType;
+                _context.Entry(vote).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetVotesForComments), new { commentId = voteRequest.VotableId }, vote);
+            }   
+            if (vote == null)
             {
                 var commentVote = BuildCommentVote(voteRequest);
                 _context.CommentVotes.Add(commentVote);
                 await _context.SaveChangesAsync();
-                return CreatedAtAction("GetCommentVote", new { id = commentVote.Id }, commentVote);
+                return CreatedAtAction(nameof(GetVotesForComments), new { commentId = voteRequest.VotableId }, commentVote);
             }
+          }
             return NotFound();
         }
 
-        // DELETE: api/Votes/5
-        //[HttpDelete("{id}")]
-        //public async Task<IActionResult> DeletePostVote(long id)
-        //{
-        //    var postVote = await _context.PostVotes.FindAsync(id);
-        //    if (postVote == null)
-        //    {
-        //        return NotFound();
-        //    }
 
-        //    _context.PostVotes.Remove(postVote);
-        //    await _context.SaveChangesAsync();
-
-        //    return NoContent();
-        //}
-
-        private bool PostVoteExists(long id)
+        private Task<PostVote> FindVoteForPost(VoteRequestDTO voteRequest)
         {
-            return _context.PostVotes.Any(e => e.Id == id);
+            return _context.PostVotes
+                            .FirstOrDefaultAsync(pv => pv.PostId == voteRequest.VotableId 
+                            && pv.UserId == voteRequest.UserId);
+        }
+
+        private Task<CommentVote> FindVoteForComment(VoteRequestDTO voteRequest)
+        {
+            return _context.CommentVotes
+                            .FirstOrDefaultAsync(pv => pv.CommentId == voteRequest.VotableId 
+                            && pv.UserId == voteRequest.UserId);
         }
 
 
@@ -174,10 +229,10 @@ namespace _247fandom.Controllers
                 var votes = tParam as ICollection<CommentVote>;
                 foreach (CommentVote cv in votes)
                 {
-                    var vdto = BuildVoteData(cv.CommentId, (int) cv.VoteType, cv.User);
+                    var vdto = BuildVoteData(cv.Id, (int) cv.VoteType, cv.User);
                     votesList.Add(vdto);
                 }
-            }
+            }                               
 
             return votesList;
         }

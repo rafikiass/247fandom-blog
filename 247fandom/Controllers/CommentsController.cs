@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using _247fandom.Models;
+using _247fandom.Mappers.Utilities;
 
 namespace _247fandom.Controllers
 {
@@ -98,7 +99,7 @@ namespace _247fandom.Controllers
             _context.Comment.Add(comment);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetComment", new { id = comment.CommentId }, comment);
+            return CreatedAtAction("GetComment", new { id = comment.CommentId }, CommentUtil.GetCommentData(comment));
         }
 
         // DELETE: api/Comments/5

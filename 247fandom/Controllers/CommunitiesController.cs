@@ -40,7 +40,8 @@ namespace _247fandom.Controllers
             //var community = await _context.Community.FindAsync(id);
             var community = await _context
                 .Community
-                .Include(c => c.Posts).ThenInclude(p => p.Comments)
+                .Include(c => c.Posts).ThenInclude(p => p.User)
+                .Include(c => c.Posts).ThenInclude(p => p.Comments).ThenInclude(cc => cc.User)
                 .Include(c => c.Members)
                 .FirstOrDefaultAsync(e => e.CommunityId == id);
 

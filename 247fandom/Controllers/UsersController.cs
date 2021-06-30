@@ -42,7 +42,7 @@ namespace _247fandom.Controllers
         public async Task<ActionResult<UserResponseDTO>> GetUser(long id)
         {
             var user = await _context.Users
-                .Include(u => u.Posts)
+                .Include(u => u.Posts).ThenInclude(p  => p.Comments).ThenInclude(c => c.User)
                 .Include(u => u.Memberships)
                 .FirstOrDefaultAsync(u => u.UserId == id);
 
